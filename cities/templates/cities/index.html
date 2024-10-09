@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Guessing Game</title>
+
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+
+    <script>
+        let cities = [
+            {% for city in cities %}
+                { id: {{ city.id }}, name: "{{ city.city_name }}" },
+            {% endfor %}
+        ];
+
+        let guessedCities = [];
+
+        function filterCities() {
+            const input = document.getElementById("city-input").value.toLowerCase();
+            const autocompleteList = document.getElementById("autocomplete-list");
+            autocompleteList.innerHTML = "";
+
+            if (input) {
+                autocompleteList.style.display = "block";
+            } else {
+                autocompleteList.style.display = "none";
+            }
+
+            const matchingCities = cities.filter(city => 
+                city.name.toLowerCase().includes(input) && !guessedCities.includes(city.id)
+            );
+
+            matchingCities.forEach(city => {
+                const item = document.createElement("div");
+                item.textContent = city.name;
+                item.onclick = () => {
+                    document.getElementById("city-input").value = city.name;
+                    document.getElementById("city-input").dataset.cityId = city.id;
+                    autocompleteList.innerHTML = "";
+                    autocompleteList.style.display = "none";
+                };
+                autocompleteList.appendChild(item);
+            });
+        }
+
+        function sendGuess() {
+            const input = document.getElementById("city-input");
+            const selectedCityId = input.dataset.cityId;
+
+            if (!selectedCityId) {
+                alert("Please select a valid city from the list.");
+                return;
+            }
+
+            fetch(`/check-guess/?guess_id=${selectedCityId}`)
+                .then(response => response.json())
+                .then(data => {
+                    let feedbackHtml = `<tr>`;
+                    
+                    const cityClass = data.is_correct ? '#002b00' : '#360101';
+                    let populationClass = data.population_feedback === 'same' ? '#002b00' : '#360101';
+                    let provinceClass = data.province_feedback === 'same' ? '#002b00' : '#360101';
+                    let areaClass = data.area_feedback === 'same' ? '#002b00' : '#360101';
+
+                    if (data.is_correct) {
+                        populationClass = '#002b00';
+                        provinceClass ='#002b00';
+                        areaClass = '#002b00';
+                    }
+
+                    feedbackHtml += `<td style="background-color: ${cityClass};">${data.city_name}</td>
+                        <td style="background-color: ${provinceClass};">${data.city_province}</td>
+                        <td style="background-color: ${populationClass};">${data.city_population}</td>
+                        <td style="background-color: ${areaClass};">${data.city_area}</td>`;
+                    feedbackHtml += `</tr>`;
+
+                    document.getElementById("table-body").insertAdjacentHTML('afterbegin', feedbackHtml);
+
+                    if (data.is_correct) {
+                        document.getElementById("guess-form").style.display = "none";
+                        document.getElementById("guess-block").innerHTML = `<p>Congratulations! You guessed the correct city!</p>`;
+                    }
+
+                    guessedCities.push(parseInt(selectedCityId));
+                    input.value = "";
+                    input.dataset.cityId = "";
+                    filterCities();
+                });
+        }
+
+        document.getElementById("city-input").addEventListener("keydown", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendGuess();
+            }
+        });
+    </script>
+</head>
+<body>
+    <h1>Canadian City Guessing Game</h1>
+    <p>Try to guess the correct city based on the hints provided!</p>
+
+    <div id="guess-block">
+        <div id="guess-form">
+            <input type="text" id="city-input" oninput="filterCities()" placeholder="Start typing a city..." autocomplete="off">
+            <button id="city-button" onclick="sendGuess()">Submit Guess</button>
+        </div>
+        <div id="autocomplete-list" class="autocomplete-items"></div>
+    </div>
+    
+    <div id="feedback">
+        <table>
+            <thead>
+                <tr>
+                    <th>City Name</th>
+                    <th>Province</th>
+                    <th>Population</th>
+                    <th>Area</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
