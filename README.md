@@ -31,7 +31,7 @@ cd canadian-city-guessing-game
 ```bash
 pip install django
 ```
-Run the Server:
+Run the server:
 
 ```bash
 python manage.py runserver
